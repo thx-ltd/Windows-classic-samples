@@ -3,7 +3,11 @@
 
 #include <Windows.h>
 #include <iostream>
+#include <TlHelp32.h>
 #include "LoopbackCapture.h"
+
+#include "thx/windows/tracelogging.hpp"
+#include "thx/wstring_conversion.hpp"
 
 void usage()
 {
@@ -26,19 +30,71 @@ void usage()
         L"  Captures audio from all processes except process 1234 and its children.\n";
 }
 
+namespace
+{
+    std::atomic_flag g_UserExit;
+}
+
+BOOL WINAPI ConsoleHandler(DWORD signal)
+{
+    if (signal == CTRL_C_EVENT)
+    {
+        std::wcout << L"CTRL_C_EVENT" << std::endl;
+        g_UserExit.test_and_set();
+        g_UserExit.notify_all();
+
+        return TRUE;
+    }
+    return FALSE;
+}
+
+
 int wmain(int argc, wchar_t* argv[])
 {
+    thx::logging::open();
+
     if (argc != 4)
     {
         usage();
         return 0;
     }
 
-    DWORD processId = wcstoul(argv[1], nullptr, 0);
+    // Search for a process with the name in argv[1]. If found, use that process ID.
+
+    DWORD processId = 0;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE)
+    {
+        std::wcout << L"Failed to create snapshot of processes." << std::endl;
+        return 0;
+    }
+
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(hSnapshot, &pe32))
+    {
+        do
+        {
+            if (_wcsicmp(pe32.szExeFile, argv[1]) == 0)
+            {
+                processId = pe32.th32ProcessID;
+                break;
+            }
+        } while (Process32Next(hSnapshot, &pe32));
+    }
+
+    CloseHandle(hSnapshot);
+
     if (processId == 0)
     {
-        usage();
-        return 0;
+        std::wcout << L"Process not found: " << argv[1] << std::endl;
+        processId = wcstoul(argv[1], nullptr, 0);
+        if (processId == 0)
+        {
+            usage();
+            return 0;
+        }
     }
 
     bool includeProcessTree;
@@ -69,8 +125,19 @@ int wmain(int argc, wchar_t* argv[])
     }
     else
     {
-        std::wcout << L"Capturing 10 seconds of audio." << std::endl;
-        Sleep(10000);
+        std::wcout << L"Capturing audio from process Id " << processId << " (" << argv[1] << ") until Ctrl - C is pressed." << std::endl;
+        if (!SetConsoleCtrlHandler(ConsoleHandler, TRUE)) {
+            printf("Failed to install console handler!\n");
+            return -1;
+        }
+
+        g_UserExit.clear();
+
+        bool userRequestedExit = g_UserExit.test();
+        while (!(userRequestedExit = g_UserExit.test()))
+        {
+            g_UserExit.wait(userRequestedExit);
+        }
 
         loopbackCapture.StopCaptureAsync();
 
