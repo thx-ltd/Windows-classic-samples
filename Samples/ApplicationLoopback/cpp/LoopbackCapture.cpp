@@ -5,6 +5,8 @@
 
 #include "LoopbackCapture.h"
 
+#include "thx/logging.hpp"
+
 #define BITS_PER_BYTE 8
 
 HRESULT CLoopbackCapture::SetDeviceStateErrorIfFailed(HRESULT hr)
@@ -63,6 +65,8 @@ HRESULT CLoopbackCapture::ActivateAudioInterface(DWORD processId, bool includePr
             activateParams.blob.cbSize = sizeof(audioclientActivationParams);
             activateParams.blob.pBlobData = (BYTE*)&audioclientActivationParams;
 
+            THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_ActivateAudioInterface", "Activating audio interface");
+
             wil::com_ptr_nothrow<IActivateAudioInterfaceAsyncOperation> asyncOp;
             RETURN_IF_FAILED(ActivateAudioInterfaceAsync(VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK, __uuidof(IAudioClient), &activateParams, this, &asyncOp));
 
@@ -83,6 +87,8 @@ HRESULT CLoopbackCapture::ActivateCompleted(IActivateAudioInterfaceAsyncOperatio
 {
     m_activateResult = SetDeviceStateErrorIfFailed([&]()->HRESULT
         {
+            THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_ActivateAudioInterface", "Audio interface activated");
+
             // Check for a successful activation result
             HRESULT hrActivateResult = E_UNEXPECTED;
             wil::com_ptr_nothrow<IUnknown> punkAudioInterface;
@@ -94,10 +100,10 @@ HRESULT CLoopbackCapture::ActivateCompleted(IActivateAudioInterfaceAsyncOperatio
 
             // The app can also call m_AudioClient->GetMixFormat instead to get the capture format.
             // 16 - bit PCM format.
-            m_CaptureFormat.wFormatTag = WAVE_FORMAT_PCM;
+            m_CaptureFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
             m_CaptureFormat.nChannels = 2;
-            m_CaptureFormat.nSamplesPerSec = 44100;
-            m_CaptureFormat.wBitsPerSample = 16;
+            m_CaptureFormat.nSamplesPerSec = 48000;
+            m_CaptureFormat.wBitsPerSample = 32;
             m_CaptureFormat.nBlockAlign = m_CaptureFormat.nChannels * m_CaptureFormat.wBitsPerSample / BITS_PER_BYTE;
             m_CaptureFormat.nAvgBytesPerSec = m_CaptureFormat.nSamplesPerSec * m_CaptureFormat.nBlockAlign;
 
@@ -117,6 +123,8 @@ HRESULT CLoopbackCapture::ActivateCompleted(IActivateAudioInterfaceAsyncOperatio
 
             // Create Async callback for sample events
             RETURN_IF_FAILED(MFCreateAsyncResult(nullptr, &m_xSampleReady, nullptr, &m_SampleReadyAsyncResult));
+
+            THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_SetEventHandle", "Setting asynchronous event on audio client");
 
             // Tell the system which event handle it should signal when an audio buffer is ready to be processed by the client
             RETURN_IF_FAILED(m_AudioClient->SetEventHandle(m_SampleReadyEvent.get()));
@@ -228,8 +236,10 @@ HRESULT CLoopbackCapture::StartCaptureAsync(DWORD processId, bool includeProcess
 //
 HRESULT CLoopbackCapture::OnStartCapture(IMFAsyncResult* pResult)
 {
-    return SetDeviceStateErrorIfFailed([&]()->HRESULT
+    return SetDeviceStateErrorIfFailed([&] ()->HRESULT
         {
+            THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_WaitForBuffer", "Starting capture via m_AudioClient->Start()");
+
             // Start the capture
             RETURN_IF_FAILED(m_AudioClient->Start());
 
@@ -318,6 +328,7 @@ HRESULT CLoopbackCapture::OnFinishCapture(IMFAsyncResult* pResult)
 //
 HRESULT CLoopbackCapture::OnSampleReady(IMFAsyncResult* pResult)
 {
+    THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_WaitForBuffer", "Device notified buffer ready");
     if (SUCCEEDED(OnAudioSampleRequested()))
     {
         // Re-queue work item for next sample
@@ -378,8 +389,11 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
     //
     // We do this by calling IAudioCaptureClient::GetNextPacketSize
     // over and over again until it indicates there are no more packets remaining.
+
+    THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_GetNextPacketSize", "Querying for packet size");
     while (SUCCEEDED(m_AudioCaptureClient->GetNextPacketSize(&FramesAvailable)) && FramesAvailable > 0)
     {
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_GetNextPacketSize", "FramesAvailable = " << FramesAvailable);
         cbBytesToCapture = FramesAvailable * m_CaptureFormat.nBlockAlign;
 
         // WAV files have a 4GB (0xFFFFFFFF) size limit, so likely we have hit that limit when we
@@ -390,9 +404,11 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
             break;
         }
 
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_GetBuffer", "Getting " << FramesAvailable << " frames");
         // Get sample buffer
         RETURN_IF_FAILED(m_AudioCaptureClient->GetBuffer(&Data, &FramesAvailable, &dwCaptureFlags, &u64DevicePosition, &u64QPCPosition));
 
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_GetBuffer", "Got " << FramesAvailable << " frames");
 
         // Write File
         if (m_DeviceState != DeviceState::Stopping)
@@ -406,12 +422,20 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
                 NULL));
         }
 
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_ReleaseBuffer", "Releasing buffer");
+
         // Release buffer back
         m_AudioCaptureClient->ReleaseBuffer(FramesAvailable);
 
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_ReleaseBuffer", "Released buffer");
+
         // Increase the size of our 'data' chunk.  m_cbDataSize needs to be accurate
         m_cbDataSize += cbBytesToCapture;
+
+        THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_GetNextPacketSize", "Querying for packet size");
     }
+
+    THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_END_GetNextPacketSize", "Completed");
 
     return S_OK;
 }
