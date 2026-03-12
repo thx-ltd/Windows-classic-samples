@@ -10,6 +10,8 @@
 
 #include "thx/logging.hpp"
 
+#include "thx_dsp.h"
+
 #include <cmath>
 #include <complex.h>
 #include <complex>
@@ -478,6 +480,11 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
             /// Convert BYTE* buffer to PCM sample based on m_CaptureFormat
             float *signal = reinterpret_cast<float *>(Data);
 
+            m_PeakIndices.clear();
+            m_PeakIndices.resize(m_nPeaksToFind);
+            m_PeakValues.clear();
+            m_PeakValues.resize(m_nPeaksToFind);
+
             /// Iterate through channels
             for (int channel = 0; channel < m_CaptureFormat.Format.nChannels;
                  ++channel)
@@ -500,7 +507,7 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
                     std::complex<double> &signalValue(
                         *(m_SignalFrequencyDomain.get() + i));
                     std::complex<double> &kernelValue(*(m_KernelFFT.get() + i));
-                    std::complex<double> convolvedValue =
+                    std::complex<double>  convolvedValue =
                         signalValue * kernelValue;
                     *(m_SignalFrequencyDomain.get() + i) = convolvedValue;
                 }
@@ -508,7 +515,15 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
                 /// IFFT convolved signal back to time domain
                 fftw_execute(m_SignalFFTPlanBackward);
 
-                /// TODO Find peaks in convolution
+                int peaksFound = 0;
+
+                /// Find peaks in convolution
+                thx_find_peaks(m_SignalTimeDomain.get(), FramesAvailable,
+                               /*threshold=*/m_PeakThreshold,
+                               /*minDistance=*/m_nMinSampleDistanceBetweenPeaks,
+                               /*maxPeaks=*/m_nPeaksToFind,
+                               m_PeakIndices.data(), m_PeakValues.data(),
+                               &peaksFound);
             }
 
             /// TODO Find time aligned peaks in different channels to determine

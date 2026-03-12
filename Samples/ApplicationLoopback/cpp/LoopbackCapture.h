@@ -23,6 +23,7 @@
 #include <fftw3.h>
 
 #include <memory>
+#include <vector>
 
 using namespace Microsoft::WRL;
 
@@ -159,4 +160,12 @@ class CLoopbackCapture
      * and n is the size of the signal.
      */
     FrequencyDomainArray m_SignalFrequencyDomain;
+
+    const int m_nPeaksToFind = 10;
+    const double m_PeakThreshold = 0.5;
+    const int    m_nMinSampleDistanceBetweenPeaks = 100;
+
+    std::vector<int> m_PeakIndices;
+
+    std::vector<double> m_PeakValues;
 };
