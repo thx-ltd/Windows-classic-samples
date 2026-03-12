@@ -243,6 +243,9 @@ HRESULT CLoopbackCapture::ActivateCompleted(
                 reinterpret_cast<fftw_complex *>(m_SignalFrequencyDomain.get()),
                 m_SignalTimeDomain.get(), FFTW_ESTIMATE | FFTW_BACKWARD);
 
+            m_PeakIndices.resize(m_CaptureFormat.Format.nChannels);
+            m_PeakValues.resize(m_CaptureFormat.Format.nChannels);
+
             // Everything is ready.
             m_DeviceState = DeviceState::Initialized;
 
@@ -522,8 +525,12 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
                                /*threshold=*/m_PeakThreshold,
                                /*minDistance=*/m_nMinSampleDistanceBetweenPeaks,
                                /*maxPeaks=*/m_nPeaksToFind,
-                               m_PeakIndices.data(), m_PeakValues.data(),
+                               m_PeakIndices[channel].data(),
+                               m_PeakValues[channel].data(),
                                &peaksFound);
+
+                m_PeakIndices[channel].resize(peaksFound);
+                m_PeakValues[channel].resize(peaksFound);
             }
 
             /// TODO Find time aligned peaks in different channels to determine

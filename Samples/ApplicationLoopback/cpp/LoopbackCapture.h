@@ -117,7 +117,7 @@ class CLoopbackCapture
     fftw_plan m_SignalFFTPlanForward;
     fftw_plan m_SignalFFTPlanBackward;
 
-    using real_type = double;
+    using real_type    = double;
     using complex_type = std::complex<real_type>;
 
     /**
@@ -161,11 +161,17 @@ class CLoopbackCapture
      */
     FrequencyDomainArray m_SignalFrequencyDomain;
 
-    const int m_nPeaksToFind = 10;
-    const double m_PeakThreshold = 0.5;
+    const int    m_nPeaksToFind                   = 10;
+    const double m_PeakThreshold                  = 0.5;
     const int    m_nMinSampleDistanceBetweenPeaks = 100;
 
-    std::vector<int> m_PeakIndices;
+    /**
+     * Peak indices by channel.
+     */
+    std::vector<std::vector<int>> m_PeakIndices;
 
-    std::vector<double> m_PeakValues;
+    /**
+     * Peak values by channel.
+     */
+    std::vector<std::vector<double>> m_PeakValues;
 };
