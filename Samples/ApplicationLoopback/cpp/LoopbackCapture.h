@@ -127,6 +127,9 @@ class CLoopbackCapture
         void operator()(complex_type *ptr) const { fftw_free(ptr); }
     };
 
+    /**
+     * Deleter for memory allocated with fftw_alloc*
+     */
     struct FFTWRealDeleter
     {
         void operator()(real_type *ptr) const { fftw_free(ptr); }

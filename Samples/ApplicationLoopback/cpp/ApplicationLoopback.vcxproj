@@ -179,10 +179,12 @@
   <ItemGroup>
     <ClCompile Include="ApplicationLoopback.cpp" />
     <ClCompile Include="LoopbackCapture.cpp" />
+    <ClCompile Include="thx_dsp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
     <ClInclude Include="LoopbackCapture.h" />
+    <ClInclude Include="thx_dsp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.clang-format" />

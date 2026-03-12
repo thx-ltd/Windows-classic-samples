@@ -21,12 +21,18 @@
     <ClCompile Include="LoopbackCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="thx_dsp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopbackCapture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="thx_dsp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
