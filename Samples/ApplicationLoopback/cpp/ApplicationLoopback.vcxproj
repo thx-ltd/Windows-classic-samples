@@ -185,8 +185,10 @@
     <ClInclude Include="LoopbackCapture.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.clang-format" />
     <None Include="..\.gitignore" />
     <None Include="..\vcpkg.json" />
+    <None Include=".github\copilot-instructions.md" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

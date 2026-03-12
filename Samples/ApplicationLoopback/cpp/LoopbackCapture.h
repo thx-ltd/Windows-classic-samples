@@ -60,7 +60,7 @@ private:
     HRESULT SetDeviceStateErrorIfFailed(HRESULT hr);
 
     wil::com_ptr_nothrow<IAudioClient> m_AudioClient;
-    WAVEFORMATEX m_CaptureFormat{};
+    WAVEFORMATEXTENSIBLE m_CaptureFormat{};
     UINT32 m_BufferFrames = 0;
     wil::com_ptr_nothrow<IAudioCaptureClient> m_AudioCaptureClient;
     wil::com_ptr_nothrow<IMFAsyncResult> m_SampleReadyAsyncResult;

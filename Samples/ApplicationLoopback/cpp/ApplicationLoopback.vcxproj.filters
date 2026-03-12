@@ -34,5 +34,7 @@
     <None Include="packages.config" />
     <None Include="..\vcpkg.json" />
     <None Include="..\.gitignore" />
+    <None Include="..\.clang-format" />
+    <None Include=".github\copilot-instructions.md" />
   </ItemGroup>
 </Project>
