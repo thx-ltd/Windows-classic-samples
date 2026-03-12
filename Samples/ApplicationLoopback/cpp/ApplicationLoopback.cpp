@@ -12,22 +12,21 @@
 void usage()
 {
     std::wcout <<
-        L"Usage: ApplicationLoopback <pid> <includetree|excludetree> <outputfilename>\n"
+        L"Usage: ApplicationLoopback <pid> <includetree|excludetree>\n"
         L"\n"
         L"<pid> is the process ID to capture or exclude from capture\n"
         L"includetree includes audio from that process and its child processes\n"
         L"excludetree includes audio from all processes except that process and its child processes\n"
-        L"<outputfilename> is the WAV file to receive the captured audio (10 seconds)\n"
         L"\n"
         L"Examples:\n"
         L"\n"
-        L"ApplicationLoopback 1234 includetree CapturedAudio.wav\n"
+        L"ApplicationLoopback 1234 includetree\n"
         L"\n"
-        L"  Captures audio from process 1234 and its children.\n"
+        L"  Process audio from process 1234 and its children.\n"
         L"\n"
-        L"ApplicationLoopback 1234 excludetree CapturedAudio.wav\n"
+        L"ApplicationLoopback 1234 excludetree\n"
         L"\n"
-        L"  Captures audio from all processes except process 1234 and its children.\n";
+        L"  Process audio from all processes except process 1234 and its children.\n";
 }
 
 namespace
@@ -51,7 +50,7 @@ BOOL WINAPI ConsoleHandler(DWORD signal)
 
 int wmain(int argc, wchar_t* argv[])
 {
-    thx::logging::open();
+    //thx::logging::open();
 
     if (argc != 4)
     {
@@ -112,10 +111,8 @@ int wmain(int argc, wchar_t* argv[])
         return 0;
     }
 
-    PCWSTR outputFile = argv[3];
-
     CLoopbackCapture loopbackCapture;
-    HRESULT hr = loopbackCapture.StartCaptureAsync(processId, includeProcessTree, outputFile);
+    HRESULT hr = loopbackCapture.StartCaptureAsync(processId, includeProcessTree);
     if (FAILED(hr))
     {
         wil::unique_hlocal_string message;
