@@ -141,7 +141,11 @@ HRESULT CLoopbackCapture::ActivateCompleted(
             m_CaptureFormat.Samples.wValidBitsPerSample = 32;
 
             /// TODO find channel mask for 7.1.4
-            m_CaptureFormat.dwChannelMask = 0;
+            m_CaptureFormat.dwChannelMask = KSAUDIO_SPEAKER_7POINT1_SURROUND
+                | SPEAKER_TOP_FRONT_LEFT
+                | SPEAKER_TOP_FRONT_RIGHT
+                | SPEAKER_TOP_BACK_LEFT
+                | SPEAKER_TOP_BACK_RIGHT;
 
             m_CaptureFormat.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
 
