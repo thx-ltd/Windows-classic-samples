@@ -178,11 +178,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ApplicationLoopback.cpp" />
+    <ClCompile Include="LocationDetection.cpp" />
     <ClCompile Include="LoopbackCapture.cpp" />
     <ClCompile Include="thx_dsp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
+    <ClInclude Include="LocationDetection.hpp" />
     <ClInclude Include="LoopbackCapture.h" />
     <ClInclude Include="thx_dsp.h" />
   </ItemGroup>

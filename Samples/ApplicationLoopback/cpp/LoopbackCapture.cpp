@@ -10,12 +10,7 @@
 
 #include "thx/logging.hpp"
 
-#include "thx_dsp.h"
-
-#include <cmath>
-#include <complex.h>
-#include <complex>
-#include <fftw3.h>
+#include "LocationDetection.hpp"
 
 #define BITS_PER_BYTE 8
 
@@ -201,50 +196,8 @@ HRESULT CLoopbackCapture::ActivateCompleted(
             RETURN_IF_FAILED(
                 m_AudioClient->SetEventHandle(m_SampleReadyEvent.get()));
 
-            /// TODO Load kernel - m
-            m_nSamplesKernel = 1024;
-
-            m_nSamplesFFT = m_BufferFrames + m_nSamplesKernel - 1;
-            // Round up to the next power of 2
-            m_nSamplesFFT =
-                1ULL << static_cast<int>(std::ceil(std::log2(m_nSamplesFFT)));
-
-            std::unique_ptr<double> kernel(fftw_alloc_real(m_nSamplesFFT));
-
-            // Allocate the kernel and kernel FFT arrays and FFT the kernel
-            // No need to plan because this is only done once.
-            m_KernelFFT.reset(reinterpret_cast<complex_type *>(
-                fftw_alloc_complex(m_nSamplesFFT)));
-
-            fftw_plan kernelPlan = fftw_plan_dft_r2c_1d(
-                m_nSamplesFFT, kernel.get(),
-                reinterpret_cast<fftw_complex *>(m_KernelFFT.get()),
-                FFTW_ESTIMATE);
-
-            // FFT the kernel
-            fftw_execute_dft_r2c(
-                kernelPlan, kernel.get(),
-                reinterpret_cast<fftw_complex *>(m_KernelFFT.get()));
-
-            // Allocate the signal time domain array
-            m_SignalTimeDomain.reset(fftw_alloc_real(m_nSamplesFFT));
-
-            // Allocate the signal FFT array
-            m_SignalFrequencyDomain.reset(reinterpret_cast<complex_type *>(
-                fftw_alloc_complex(m_nSamplesFFT)));
-
-            m_SignalFFTPlanForward = fftw_plan_dft_r2c_1d(
-                m_nSamplesFFT, m_SignalTimeDomain.get(),
-                reinterpret_cast<fftw_complex *>(m_SignalFrequencyDomain.get()),
-                FFTW_ESTIMATE | FFTW_FORWARD);
-
-            m_SignalFFTPlanBackward = fftw_plan_dft_c2r_1d(
-                m_nSamplesFFT,
-                reinterpret_cast<fftw_complex *>(m_SignalFrequencyDomain.get()),
-                m_SignalTimeDomain.get(), FFTW_ESTIMATE | FFTW_BACKWARD);
-
-            m_PeakIndices.resize(m_CaptureFormat.Format.nChannels);
-            m_PeakValues.resize(m_CaptureFormat.Format.nChannels);
+            m_LocationDetection.reset(new LocationDetection(
+                m_BufferFrames, m_CaptureFormat.Format.nChannels));
 
             // Everything is ready.
             m_DeviceState = DeviceState::Initialized;
@@ -483,61 +436,7 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
             /// Convert BYTE* buffer to PCM sample based on m_CaptureFormat
             float *signal = reinterpret_cast<float *>(Data);
 
-            m_PeakIndices.clear();
-            m_PeakIndices.resize(m_nPeaksToFind);
-            m_PeakValues.clear();
-            m_PeakValues.resize(m_nPeaksToFind);
-
-            /// Iterate through channels
-            for (int channel = 0; channel < m_CaptureFormat.Format.nChannels;
-                 ++channel)
-            {
-                // Copy from signal to m_SignalTimeDomain, only the samples for
-                // this channel
-                for (UINT32 frame = 0; frame < FramesAvailable; ++frame)
-                {
-                    *(m_SignalTimeDomain.get() + frame) =
-                        signal[frame * m_CaptureFormat.Format.nChannels +
-                               channel];
-                }
-
-                /// FFT signal
-                fftw_execute(m_SignalFFTPlanForward);
-
-                /// Frequency domain convolution of signal with kernel
-                for (int i = 0; i < m_nSamplesFFT / 2 + 1; ++i)
-                {
-                    std::complex<double> &signalValue(
-                        *(m_SignalFrequencyDomain.get() + i));
-                    std::complex<double> &kernelValue(*(m_KernelFFT.get() + i));
-                    std::complex<double>  convolvedValue =
-                        signalValue * kernelValue;
-                    *(m_SignalFrequencyDomain.get() + i) = convolvedValue;
-                }
-
-                /// IFFT convolved signal back to time domain
-                fftw_execute(m_SignalFFTPlanBackward);
-
-                int peaksFound = 0;
-
-                /// Find peaks in convolution
-                thx_find_peaks(m_SignalTimeDomain.get(), FramesAvailable,
-                               /*threshold=*/m_PeakThreshold,
-                               /*minDistance=*/m_nMinSampleDistanceBetweenPeaks,
-                               /*maxPeaks=*/m_nPeaksToFind,
-                               m_PeakIndices[channel].data(),
-                               m_PeakValues[channel].data(),
-                               &peaksFound);
-
-                m_PeakIndices[channel].resize(peaksFound);
-                m_PeakValues[channel].resize(peaksFound);
-            }
-
-            /// TODO Find time aligned peaks in different channels to determine
-            /// direction of sound
-
-            /// TODO Ratio of peak heights in different channels gives the
-            /// proportional distance from the channel locations.
+            m_LocationDetection->ProcessSignal(signal, FramesAvailable);
         }
 
         THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_ReleaseBuffer",
