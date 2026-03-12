@@ -28,7 +28,7 @@ HRESULT CLoopbackCapture::InitializeLoopbackCapture()
 
     // Register MMCSS work queue
     DWORD dwTaskID = 0;
-    RETURN_IF_FAILED(MFLockSharedWorkQueue(L"Capture", 0, &dwTaskID, &m_dwQueueID));
+    RETURN_IF_FAILED(MFLockSharedWorkQueue(L"SoundRadar", 0, &dwTaskID, &m_dwQueueID));
 
     // Set the capture event work queue to use the MMCSS queue
     m_xSampleReady.SetQueueID(m_dwQueueID);
@@ -98,8 +98,14 @@ HRESULT CLoopbackCapture::ActivateCompleted(IActivateAudioInterfaceAsyncOperatio
             // Get the pointer for the Audio Client
             RETURN_IF_FAILED(punkAudioInterface.copy_to(&m_AudioClient));
 
+            /// TODO what formats are available here?
+            /// GetMixFormat
+            /// 
+
             // The app can also call m_AudioClient->GetMixFormat instead to get the capture format.
             // 16 - bit PCM format.
+
+            /// TODO what format is required to capture 7.1.4?
             m_CaptureFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
             m_CaptureFormat.nChannels = 2;
             m_CaptureFormat.nSamplesPerSec = 48000;
@@ -129,6 +135,8 @@ HRESULT CLoopbackCapture::ActivateCompleted(IActivateAudioInterfaceAsyncOperatio
 
             // Tell the system which event handle it should signal when an audio buffer is ready to be processed by the client
             RETURN_IF_FAILED(m_AudioClient->SetEventHandle(m_SampleReadyEvent.get()));
+
+            /// TODO initialize FFT
 
             // Everything is ready.
             m_DeviceState = DeviceState::Initialized;
@@ -338,6 +346,11 @@ HRESULT CLoopbackCapture::OnAudioSampleRequested()
         {
             // Process incoming audio here
 
+            /// TODO Convert BYTE* buffer to PCM sample based on m_CaptureFormat
+
+            /// TODO Iterate through channels
+
+            /// TODO FFT 
         }
 
         THX_LOG_OBJECT_INFO("THX_LATENCY_CAPTURE_EVENT_START_ReleaseBuffer", "Releasing buffer");
