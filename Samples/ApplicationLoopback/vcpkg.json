@@ -1,0 +1,11 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "thx-sound-radar",
+    "version": "1.0.0",
+    "description": "THX Sound Radar using ApplicationLoopback",
+    "dependencies": [
+        {
+            "name": "fftw3"
+        }
+    ]
+}
